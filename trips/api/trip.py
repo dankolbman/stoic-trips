@@ -3,9 +3,10 @@ from datetime import datetime
 from dateutil import parser
 from sqlalchemy import desc
 
-from ..model import Trip
 from flask_restplus import Api, Resource, Namespace, fields
+from flask_jwt import _jwt_required, JWTError, current_identity
 from .. import db
+from ..model import Trip
 
 
 api = Namespace('trips', description='Trip service')
@@ -31,6 +32,20 @@ paginated = api.model('PagedTrips', {
         'trips': fields.List(fields.Nested(trip_model)),
         'total': fields.Integer(description='Number of results')
     })
+
+
+def belongs_to(username):
+    """
+    Checks a username against the username in the JWT token
+    """
+    try:
+        _jwt_required(None)
+        if not current_identity['username'] == username:
+            return {'status': 403, 'message': 'not allowed'}, 403
+    except JWTError as e:
+        return {'status': 403, 'message': 'not allowed'}, 403
+
+    return True
 
 
 @api.route('/status')
@@ -78,7 +93,7 @@ class UserTrips(Resource):
         start = request.args.get('start', epoch, type=str)
         start_dt = parser.parse(start)
         size = request.args.get('size', 10, type=int)
-        
+
         q = (Trip.query.filter_by(username=username)
                        .order_by(desc(Trip.created_at))
                        .filter(Trip.created_at > start_dt))
@@ -93,6 +108,9 @@ class UserTrips(Resource):
         """
         Create a trip
         """
+        allowed = belongs_to(username)
+        if allowed is not True:
+            return allowed
         trip = request.json
         missing = []
         for field in ['name']:

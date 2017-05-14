@@ -7,7 +7,7 @@ from flask import current_app, url_for
 from trips import create_app, db
 from trips.model import Trip
 
-from test.utils import FlaskTestCase, api_headers, make_trip
+from test.utils import FlaskTestCase
 
 
 class tripTestCase(FlaskTestCase):
@@ -16,15 +16,7 @@ class tripTestCase(FlaskTestCase):
         """
         Test trip creation via REST API
         """
-        resp = self.client.post('/trips/Dan',
-                                headers=api_headers(),
-                                data=json.dumps({'name': 'trip 1',
-                                                 'start': 'Ho Chi Minh',
-                                                 'finish': 'Hanoi',
-                                                 'public': True,
-                                                 'description': 'Lorem ipsum'})
-                                )
-        json_resp = json.loads(resp.data.decode('utf-8'))
+        json_resp = self.make_trip('Dan')
         # check api response
         self.assertEqual(json_resp['status'], 201)
         self.assertEqual(json_resp['message'], 'created trip')
@@ -42,8 +34,8 @@ class tripTestCase(FlaskTestCase):
         """
         Test that /trips will return trips from different users
         """
-        resp = make_trip(self.client, 'Dan', name='Dans trip')
-        resp = make_trip(self.client, 'Bob', name='Bobs trip')
+        resp = self.make_trip('Dan', name='Dans trip')
+        resp = self.make_trip('Bob', name='Bobs trip')
         self.assertEqual(Trip.query.count(), 2)
         resp = self.client.get('/trips/')
         json_resp = json.loads(resp.data.decode('utf-8'))
@@ -54,24 +46,24 @@ class tripTestCase(FlaskTestCase):
         Test the ?size param
         """
         for i in range(4):
-            resp = make_trip(self.client, 'Dan', name='Dans trip')
+            resp = self.make_trip('Dan', name='Dans trip')
         for i in range(3):
-            resp = make_trip(self.client, 'Bob', name='Bobs trip')
+            resp = self.make_trip('Bob', name='Bobs trip')
         for i in range(13):
-            resp = make_trip(self.client, 'Dan', name='Dans trip')
-            resp = make_trip(self.client, 'Bob', name='Bobs trip')
+            resp = self.make_trip('Dan', name='Dans trip')
+            resp = self.make_trip('Bob', name='Bobs trip')
         self.assertEqual(Trip.query.count(), 33)
         # Test size
         resp = self.client.get('/trips/',
-                                headers=api_headers(),
-                                query_string=dict(size=5))
+                               headers=self._api_headers(),
+                               query_string=dict(size=5))
         json_resp = json.loads(resp.data.decode('utf-8'))
         self.assertEqual(len(json_resp['trips']), 5)
         self.assertEqual(json_resp['total'], 33)
 
         resp = self.client.get('/trips/Dan',
-                                headers=api_headers(),
-                                query_string=dict(size=8))
+                               headers=self._api_headers(),
+                               query_string=dict(size=8))
         json_resp = json.loads(resp.data.decode('utf-8'))
         self.assertEqual(len(json_resp['trips']), 8)
         self.assertEqual(json_resp['total'], 17)
@@ -82,28 +74,42 @@ class tripTestCase(FlaskTestCase):
         """
         t0 = datetime.utcnow().isoformat()
         for i in range(4):
-            resp = make_trip(self.client, 'Dan', name='Dans', created_at=t0)
+            resp = self.make_trip('Dan', name='Dans', created_at=t0)
         for i in range(3):
-            resp = make_trip(self.client, 'Bob', name='Bobs', created_at=t0)
+            resp = self.make_trip('Bob', name='Bobs', created_at=t0)
         time.sleep(0.1)
         t1 = datetime.utcnow().isoformat()
         time.sleep(0.1)
         t2 = datetime.utcnow().isoformat()
         for i in range(2):
-            resp = make_trip(self.client, 'Dan', name='Dans', created_at=t2)
-            resp = make_trip(self.client, 'Bob', name='Bobs', created_at=t2)
+            resp = self.make_trip('Dan', name='Dans', created_at=t2)
+            resp = self.make_trip('Bob', name='Bobs', created_at=t2)
         self.assertEqual(Trip.query.count(), 11)
         # Test start
         resp = self.client.get('/trips/',
-                                headers=api_headers(),
-                                query_string=dict(start=t1))
+                               headers=self._api_headers(),
+                               query_string=dict(start=t1))
         json_resp = json.loads(resp.data.decode('utf-8'))
         self.assertEqual(len(json_resp['trips']), 4)
         self.assertEqual(json_resp['total'], 4)
 
         resp = self.client.get('/trips/Dan',
-                                headers=api_headers(),
-                                query_string=dict(start=t1))
+                               headers=self._api_headers(),
+                               query_string=dict(start=t1))
         json_resp = json.loads(resp.data.decode('utf-8'))
         self.assertEqual(len(json_resp['trips']), 2)
         self.assertEqual(json_resp['total'], 2)
+
+    def test_auth(self):
+        """
+        Test the authorization when posting to /trips/username/
+        """
+        trip = {'name': 'trip 1',
+                'description': 'Lorem ipsum'}
+        resp = self.client.post('/trips/Dan',
+                                headers=self._api_headers(),
+                                data=json.dumps(trip))
+        self.assertEqual(resp.status, '403 FORBIDDEN')
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(json_resp['status'], 403)
+        self.assertEqual(json_resp['message'], 'not allowed')
