@@ -22,6 +22,7 @@ def create_app(config_name):
     config[config_name].init_app(app)
 
     db.init_app(app)
+    db.create_all()
     from .api import api
     api.init_app(app)
     jwt = JWT(app, authenticate, identity)
