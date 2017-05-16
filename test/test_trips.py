@@ -30,6 +30,30 @@ class tripTestCase(FlaskTestCase):
         self.assertEqual(trip.public, True)
         self.assertEqual(trip.description, 'Lorem ipsum')
 
+    def test_missing_field(self):
+        """
+        Test repsonse when name field is missing
+        """
+        defaults = {'start': 'Ho Chi Minh',
+                    'finish': 'Hanoi',
+                    'public': True,
+                    'description': 'Lorem ipsum'}
+        resp = self.client.post('/trips/Dan',
+                                headers=self._api_headers(username='Dan'),
+                                data=json.dumps(defaults))
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(json_resp['status'], 400)
+        self.assertEqual(json_resp['message'], 'missing fields: name')
+
+    def test_empty_post(self):
+        """
+        Test repsonse when no data is posted
+        """
+        resp = self.client.post('/trips/Dan',
+                                headers=self._api_headers(username='Dan'))
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('Failed to decode', json_resp['message'])
+
     def test_multi_user(self):
         """
         Test that /trips will return trips from different users
