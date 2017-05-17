@@ -12,13 +12,9 @@ from ..model import Trip
 api = Namespace('trips', description='Trip service')
 
 
-post_model = api.model('PostResp', {
-        'message': fields.String(description='Response message'),
-        'status': fields.Integer(description='Response HTTP status code'),
-    })
-
 trip_model = api.model('Trip', {
-        'name': fields.String(description='Name of the trip'),
+        'id': fields.String(description='Title of the trip'),
+        'title': fields.String(description='Title of the trip'),
         'username': fields.String(description='Creator\'s username'),
         'created_at': fields.DateTime(description='Time of creation'),
         'start': fields.String(description='Location of trip start'),
@@ -30,7 +26,16 @@ trip_model = api.model('Trip', {
 
 paginated = api.model('PagedTrips', {
         'trips': fields.List(fields.Nested(trip_model)),
-        'total': fields.Integer(description='Number of results')
+        'total': fields.Integer(description='Number of results'),
+        'message': fields.String(description='Response message'),
+        'status': fields.Integer(description='Response HTTP status code'),
+    })
+
+
+resp_model = api.model('TripResp', {
+        'trip': fields.Nested(trip_model),
+        'message': fields.String(description='Response message'),
+        'status': fields.Integer(description='Response HTTP status code')
     })
 
 
@@ -102,7 +107,7 @@ class UserTrips(Resource):
 
         return {'trips': [t.to_json() for t in trips], 'total': total}, 200
 
-    @api.marshal_with(post_model)
+    @api.marshal_with(resp_model)
     @api.doc(responses={201: 'created trip'})
     def post(self, username):
         """
@@ -113,32 +118,34 @@ class UserTrips(Resource):
             return allowed
         trip = request.json
         missing = []
-        for field in ['name']:
+        for field in ['title']:
             if field not in trip:
                 missing.append(field)
         if missing:
-            return {'message': 'missing fields: '+' '.join(missing),
+            return {'trip': [],
+                    'message': 'missing fields: '+' '.join(missing),
                     'status': 400}, 400
 
         trip = Trip(username=username, **trip)
         db.session.add(trip)
         db.session.commit()
+        return {'trip': trip,
+                'message': 'created trip',
+                'status': 201}, 201
 
-        return {'message': 'created trip', 'status': 201}, 200
 
-
-@api.route('/<string:username>/<string:trip>')
+@api.route('/<string:username>/<int:trip_id>')
 class UserTrip(Resource):
-    @api.marshal_with(trip_model)
-    @api.doc(responses={200: 'found trips'},
-             params={'start': 'Return only trips starting after this time',
-                     'size': 'Number of trips to retrieve'})
-    def get(self, username, trip):
+    @api.marshal_with(resp_model)
+    @api.doc(responses={200: 'found trip'})
+    def get(self, username, trip_id):
         """
         Get a specific trip
         """
-        trips = (Trip.query.filter_by(username=username)
-                           .filter_by(name=trip)
-                           .first())
+        trip = (Trip.query.filter_by(username=username)
+                          .filter_by(id=trip_id)
+                          .first())
 
-        return {'trip': trips}, 200
+        return {'trip': trip,
+                'message': 'found trip',
+                'status': 200}, 200
