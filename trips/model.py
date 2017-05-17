@@ -9,7 +9,7 @@ class Trip(db.Model):
     """
     __tablename__ = 'trips'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), index=True)
+    title = db.Column(db.String(255), index=False)
     username = db.Column(db.String(32), index=True)
     complete = db.Column(db.Boolean(), default=False)
     created_at = db.Column(db.DateTime(), default=datetime.utcnow())
@@ -24,8 +24,10 @@ class Trip(db.Model):
         super(Trip, self).__init__(**kwargs)
 
     def to_json(self):
-        return {"name": self.name,
+        return {"trip_id": self.id,
+                "title": self.title,
                 "username": self.username,
+                "complete": self.complete,
                 "created_at": self.created_at.isoformat(),
                 "start": self.start,
                 "finish": self.finish,

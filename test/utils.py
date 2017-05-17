@@ -41,7 +41,7 @@ class FlaskTestCase(unittest.TestCase):
         """
         Makes a trip via the REST API
         """
-        defaults = {'name': 'trip 1',
+        defaults = {'title': 'trip 1',
                     'start': 'Ho Chi Minh',
                     'finish': 'Hanoi',
                     'public': True,

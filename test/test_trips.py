@@ -24,7 +24,7 @@ class tripTestCase(FlaskTestCase):
         self.assertEqual(Trip.query.count(), 1)
         trip = Trip.query.first()
         self.assertEqual(trip.username, 'Dan')
-        self.assertEqual(trip.name, 'trip 1')
+        self.assertEqual(trip.title, 'trip 1')
         self.assertEqual(trip.start, 'Ho Chi Minh')
         self.assertEqual(trip.finish, 'Hanoi')
         self.assertEqual(trip.public, True)
@@ -43,7 +43,7 @@ class tripTestCase(FlaskTestCase):
                                 data=json.dumps(defaults))
         json_resp = json.loads(resp.data.decode('utf-8'))
         self.assertEqual(json_resp['status'], 400)
-        self.assertEqual(json_resp['message'], 'missing fields: name')
+        self.assertEqual(json_resp['message'], 'missing fields: title')
 
     def test_empty_post(self):
         """
@@ -54,12 +54,24 @@ class tripTestCase(FlaskTestCase):
         json_resp = json.loads(resp.data.decode('utf-8'))
         self.assertIn('Failed to decode', json_resp['message'])
 
+    def test_single_trip(self):
+        """
+        Test repsonse of single trip
+        """
+        trip1 = self.make_trip('Dan', title='Dans trip')
+        tid = trip1['trip']['id']
+        self.assertEqual(trip1['trip']['title'], 'Dans trip')
+        resp = self.client.get('/trips/Dan/'+tid,
+                               headers=self._api_headers(username='Dan'))
+        trip2 = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(trip1['trip'], trip2['trip'])
+
     def test_multi_user(self):
         """
         Test that /trips will return trips from different users
         """
-        resp = self.make_trip('Dan', name='Dans trip')
-        resp = self.make_trip('Bob', name='Bobs trip')
+        resp = self.make_trip('Dan', title='Dans trip')
+        resp = self.make_trip('Bob', title='Bobs trip')
         self.assertEqual(Trip.query.count(), 2)
         resp = self.client.get('/trips/')
         json_resp = json.loads(resp.data.decode('utf-8'))
@@ -70,12 +82,12 @@ class tripTestCase(FlaskTestCase):
         Test the ?size param
         """
         for i in range(4):
-            resp = self.make_trip('Dan', name='Dans trip')
+            resp = self.make_trip('Dan', title='Dans trip')
         for i in range(3):
-            resp = self.make_trip('Bob', name='Bobs trip')
+            resp = self.make_trip('Bob', title='Bobs trip')
         for i in range(13):
-            resp = self.make_trip('Dan', name='Dans trip')
-            resp = self.make_trip('Bob', name='Bobs trip')
+            resp = self.make_trip('Dan', title='Dans trip')
+            resp = self.make_trip('Bob', title='Bobs trip')
         self.assertEqual(Trip.query.count(), 33)
         # Test size
         resp = self.client.get('/trips/',
@@ -98,16 +110,16 @@ class tripTestCase(FlaskTestCase):
         """
         t0 = datetime.utcnow().isoformat()
         for i in range(4):
-            resp = self.make_trip('Dan', name='Dans', created_at=t0)
+            resp = self.make_trip('Dan', title='Dans', created_at=t0)
         for i in range(3):
-            resp = self.make_trip('Bob', name='Bobs', created_at=t0)
+            resp = self.make_trip('Bob', title='Bobs', created_at=t0)
         time.sleep(0.1)
         t1 = datetime.utcnow().isoformat()
         time.sleep(0.1)
         t2 = datetime.utcnow().isoformat()
         for i in range(2):
-            resp = self.make_trip('Dan', name='Dans', created_at=t2)
-            resp = self.make_trip('Bob', name='Bobs', created_at=t2)
+            resp = self.make_trip('Dan', title='Dans', created_at=t2)
+            resp = self.make_trip('Bob', title='Bobs', created_at=t2)
         self.assertEqual(Trip.query.count(), 11)
         # Test start
         resp = self.client.get('/trips/',
@@ -128,7 +140,7 @@ class tripTestCase(FlaskTestCase):
         """
         Test the authorization when posting to /trips/username/
         """
-        trip = {'name': 'trip 1',
+        trip = {'title': 'trip 1',
                 'description': 'Lorem ipsum'}
         resp = self.client.post('/trips/Dan',
                                 headers=self._api_headers(),
