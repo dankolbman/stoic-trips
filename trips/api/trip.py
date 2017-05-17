@@ -1,4 +1,4 @@
-from flask import request, jsonify, session
+from flask import request, jsonify, session, abort
 from datetime import datetime
 from dateutil import parser
 from sqlalchemy import desc
@@ -9,33 +9,31 @@ from .. import db
 from ..model import Trip
 
 
-api = Namespace('trips', description='Trip service')
+api = Namespace('trips', description='Trip service', catch_all_404s=True)
 
 
 trip_model = api.model('Trip', {
-        'id': fields.String(description='Title of the trip'),
+        'id': fields.Integer(description='Id of the trip'),
         'title': fields.String(description='Title of the trip'),
         'username': fields.String(description='Creator\'s username'),
         'created_at': fields.DateTime(description='Time of creation'),
         'start': fields.String(description='Location of trip start'),
         'finish': fields.String(description='Location of trip end'),
         'public': fields.Boolean(description='Is the trip public'),
-        'description': fields.String('Description of the trip')
+        'description': fields.String(description='Description of the trip')
     })
 
 
 paginated = api.model('PagedTrips', {
-        'trips': fields.List(fields.Nested(trip_model)),
+        'trips': fields.List(fields.Nested(trip_model), allow_null=True),
         'total': fields.Integer(description='Number of results'),
-        'message': fields.String(description='Response message'),
-        'status': fields.Integer(description='Response HTTP status code'),
+        'message': fields.String(description='Response message')
     })
 
 
 resp_model = api.model('TripResp', {
-        'trip': fields.Nested(trip_model),
-        'message': fields.String(description='Response message'),
-        'status': fields.Integer(description='Response HTTP status code')
+        'trip': fields.Nested(trip_model, default={}),
+        'message': fields.String(description='Response message')
     })
 
 
@@ -46,9 +44,9 @@ def belongs_to(username):
     try:
         _jwt_required(None)
         if not current_identity['username'] == username:
-            return {'status': 403, 'message': 'not allowed'}, 403
+            abort(403, 'not allowed')
     except JWTError as e:
-        return {'status': 403, 'message': 'not allowed'}, 403
+        abort(403, 'not allowed')
 
     return True
 
@@ -56,8 +54,7 @@ def belongs_to(username):
 @api.route('/status')
 class Status(Resource):
     def get(self, **kwargs):
-        return {'status': 200,
-                'version': '1.0'}, 200
+        return {'version': '1.0'}, 200
 
 
 @api.route('/')
@@ -104,8 +101,12 @@ class UserTrips(Resource):
                        .filter(Trip.created_at > start_dt))
         trips = q.limit(size)
         total = q.count()
+        if total == 0:
+            abort(404, 'user does not exist or has no trips')
 
-        return {'trips': [t.to_json() for t in trips], 'total': total}, 200
+        return {'trips': [t.to_json() for t in trips],
+                'total': total,
+                'message': 'found trips for {}'.format(username)}, 200
 
     @api.marshal_with(resp_model)
     @api.doc(responses={201: 'created trip'})
@@ -122,16 +123,14 @@ class UserTrips(Resource):
             if field not in trip:
                 missing.append(field)
         if missing:
-            return {'trip': [],
-                    'message': 'missing fields: '+' '.join(missing),
-                    'status': 400}, 400
+            return {'trip': {},
+                    'message': 'missing fields: '+' '.join(missing)}, 400
 
         trip = Trip(username=username, **trip)
         db.session.add(trip)
         db.session.commit()
         return {'trip': trip,
-                'message': 'created trip',
-                'status': 201}, 201
+                'message': 'created trip'}, 201
 
 
 @api.route('/<string:username>/<int:trip_id>')
@@ -145,7 +144,8 @@ class UserTrip(Resource):
         trip = (Trip.query.filter_by(username=username)
                           .filter_by(id=trip_id)
                           .first())
+        if trip is None:
+            abort(404, 'no trip with this id for this user')
 
         return {'trip': trip,
-                'message': 'found trip',
-                'status': 200}, 200
+                'message': 'found trip'}, 200
