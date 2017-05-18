@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask
+from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt import JWT, _default_jwt_payload_handler
 from config import config
@@ -25,5 +25,9 @@ def create_app(config_name):
     from .api import api
     api.init_app(app)
     jwt = JWT(app, authenticate, identity)
+
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return jsonify({'message': 'not found'}), 404
 
     return app

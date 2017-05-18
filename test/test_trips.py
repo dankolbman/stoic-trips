@@ -16,9 +16,9 @@ class tripTestCase(FlaskTestCase):
         """
         Test trip creation via REST API
         """
-        json_resp = self.make_trip('Dan')
+        resp, json_resp = self.make_trip('Dan')
         # check api response
-        self.assertEqual(json_resp['status'], 201)
+        self.assertEqual(resp.status_code, 201)
         self.assertEqual(json_resp['message'], 'created trip')
         # check that user is in database
         self.assertEqual(Trip.query.count(), 1)
@@ -29,6 +29,34 @@ class tripTestCase(FlaskTestCase):
         self.assertEqual(trip.finish, 'Hanoi')
         self.assertEqual(trip.public, True)
         self.assertEqual(trip.description, 'Lorem ipsum')
+
+    def test_no_trips(self):
+        """
+        Test result for no trips/user
+        """
+        resp = self.client.get('/trips/Dan',
+                               headers=self._api_headers())
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_no_trip_by_id(self):
+        """
+        Test result for no trip by id
+        """
+        resp = self.client.get('/trips/Dan/122',
+                               headers=self._api_headers())
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_404(self):
+        """
+        Test result for invalid page
+        """
+        resp = self.client.get('/trips/Dan/122aab',
+                               headers=self._api_headers())
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(json_resp['message'], 'not found')
 
     def test_missing_field(self):
         """
@@ -42,7 +70,7 @@ class tripTestCase(FlaskTestCase):
                                 headers=self._api_headers(username='Dan'),
                                 data=json.dumps(defaults))
         json_resp = json.loads(resp.data.decode('utf-8'))
-        self.assertEqual(json_resp['status'], 400)
+        self.assertEqual(resp.status_code, 400)
         self.assertEqual(json_resp['message'], 'missing fields: title')
 
     def test_empty_post(self):
@@ -58,20 +86,21 @@ class tripTestCase(FlaskTestCase):
         """
         Test repsonse of single trip
         """
-        trip1 = self.make_trip('Dan', title='Dans trip')
+        resp, trip1 = self.make_trip('Dan', title='Dans trip')
         tid = trip1['trip']['id']
         self.assertEqual(trip1['trip']['title'], 'Dans trip')
-        resp = self.client.get('/trips/Dan/'+tid,
+        resp = self.client.get('/trips/Dan/'+str(tid),
                                headers=self._api_headers(username='Dan'))
         trip2 = json.loads(resp.data.decode('utf-8'))
-        self.assertEqual(trip1['trip'], trip2['trip'])
+        self.assertDictEqual(trip1['trip'], trip2['trip'])
+        self.assertEqual(type(trip1['trip']['id']), int)
 
     def test_multi_user(self):
         """
         Test that /trips will return trips from different users
         """
-        resp = self.make_trip('Dan', title='Dans trip')
-        resp = self.make_trip('Bob', title='Bobs trip')
+        resp, json_resp = self.make_trip('Dan', title='Dans trip')
+        resp, json_resp = self.make_trip('Bob', title='Bobs trip')
         self.assertEqual(Trip.query.count(), 2)
         resp = self.client.get('/trips/')
         json_resp = json.loads(resp.data.decode('utf-8'))
@@ -145,7 +174,6 @@ class tripTestCase(FlaskTestCase):
         resp = self.client.post('/trips/Dan',
                                 headers=self._api_headers(),
                                 data=json.dumps(trip))
-        self.assertEqual(resp.status, '403 FORBIDDEN')
+        self.assertEqual(resp.status_code, 403)
         json_resp = json.loads(resp.data.decode('utf-8'))
-        self.assertEqual(json_resp['status'], 403)
         self.assertEqual(json_resp['message'], 'not allowed')

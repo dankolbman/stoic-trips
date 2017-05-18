@@ -24,7 +24,7 @@ class Trip(db.Model):
         super(Trip, self).__init__(**kwargs)
 
     def to_json(self):
-        return {"trip_id": self.id,
+        return {"id": self.id,
                 "title": self.title,
                 "username": self.username,
                 "complete": self.complete,

@@ -51,4 +51,4 @@ class FlaskTestCase(unittest.TestCase):
                                 headers=self._api_headers(username=username),
                                 data=json.dumps(defaults))
         json_resp = json.loads(resp.data.decode('utf-8'))
-        return json_resp
+        return resp, json_resp
