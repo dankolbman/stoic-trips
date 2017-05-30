@@ -12,6 +12,15 @@ from test.utils import FlaskTestCase
 
 class tripTestCase(FlaskTestCase):
 
+    def test_status(self):
+        """
+        Test the status endpoint
+        """
+        resp = self.client.get('/status')
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(json_resp['status'], 200)
+        self.assertEqual(len(json_resp['version']), 7)
+
     def test_new_trip(self):
         """
         Test trip creation via REST API
