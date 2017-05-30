@@ -1,3 +1,4 @@
+import subprocess
 from datetime import datetime
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -29,5 +30,13 @@ def create_app(config_name):
     @app.errorhandler(404)
     def page_not_found(e):
         return jsonify({'message': 'not found'}), 404
+
+    @app.route('/status')
+    def status():
+        return jsonify({
+            "version": (subprocess.check_output(
+                        ['git', 'rev-parse', '--short', 'HEAD'])
+                        .decode('utf-8').strip()),
+            "status": 200})
 
     return app
