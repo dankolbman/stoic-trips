@@ -12,7 +12,7 @@ class Trip(db.Model):
     title = db.Column(db.String(255), index=False)
     username = db.Column(db.String(32), index=True)
     complete = db.Column(db.Boolean(), default=False)
-    created_at = db.Column(db.DateTime(), default=datetime.utcnow())
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     start = db.Column(db.String(32))
     finish = db.Column(db.String(32))
     public = db.Column(db.Boolean(), default=True)
