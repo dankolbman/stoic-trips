@@ -115,6 +115,32 @@ class tripTestCase(FlaskTestCase):
         json_resp = json.loads(resp.data.decode('utf-8'))
         self.assertEqual(json_resp['total'], 2)
 
+    def test_delete(self):
+        """
+        Test deletion of trips
+        """
+        resp, json_resp = self.make_trip('Dan', title='Dans trip')
+        resp, json_resp = self.make_trip('Bob', title='Bobs trip')
+        resp, json_resp = self.make_trip('Dan', title='Dans 2nd trip')
+        self.assertEqual(Trip.query.count(), 3)
+        resp = self.client.delete('/trips/Dan/1')
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(resp.status_code, 403)
+
+        resp = self.client.delete('/trips/Dan/1',
+                                  headers=self._api_headers(username='Bob'))
+        json_resp = json.loads(resp.data.decode('utf-8'))
+        self.assertEqual(resp.status_code, 403)
+
+        resp = self.client.delete('/trips/Dan/1',
+                                  headers=self._api_headers(username='Dan'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Trip.query.count(), 2)
+
+        resp = self.client.delete('/trips/Dan/1',
+                                  headers=self._api_headers(username='Dan'))
+        self.assertEqual(resp.status_code, 404)
+
     def test_size_param(self):
         """
         Test the ?size param
