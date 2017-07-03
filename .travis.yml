@@ -1,6 +1,7 @@
 language: python
 services:
   - postgresql
+  - docker
 before_script:
   - psql -c 'create database stoic_test;' -U postgres
 python:
@@ -14,4 +15,9 @@ script:
   - py.test --pep8 trips
   - py.test -v --cov=trips --cov-report term-missing --pep8 test
 after_success:
-  coveralls
+  - coveralls
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    docker build -t kolbman.xyz:3333/trips .;
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" $DOCKER_REGISTRY;
+    docker push kolbman.xyz:3333/trips;
+    fi
