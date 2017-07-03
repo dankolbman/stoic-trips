@@ -149,3 +149,22 @@ class UserTrip(Resource):
 
         return {'trip': trip,
                 'message': 'found trip'}, 200
+
+    @api.doc(responses={403: 'not allowed',
+                        404: 'not found',
+                        200: 'post deleted'})
+    def delete(self, username, trip_id):
+        """
+        Delete a trip
+
+        TODO: Delete all blurbs/images/lines/points
+        """
+        # check the trip belongs to the authenticated user
+        allowed = belongs_to(username)
+        if allowed is not True:
+            return allowed
+        trip = Trip.query.get(trip_id)
+        if trip is None:
+            abort(404, 'not found')
+        db.session.delete(trip)
+        db.session.commit()
